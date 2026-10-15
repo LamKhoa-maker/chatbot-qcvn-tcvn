@@ -10,6 +10,7 @@ BASE = Path(__file__).resolve().parents[1]
 
 def raw_files() -> list[Path]:
     files = list(BASE.glob("TCVN *.md")) + list(BASE.glob("QCVN *.md"))
+    files += list((BASE / "data_goc").glob("*.md"))
     files += list((BASE / "data" / "raw").glob("*.md"))
     seen, out = set(), []
     for f in files:

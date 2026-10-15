@@ -32,9 +32,10 @@ def build_prompt(question: str, hits: list[dict]) -> str:
     return f"{SYSTEM}\n\nCau hoi: {question}\n\nCac doan trich:\n" + "\n\n".join(ctx)
 
 
-def answer(question: str, top_k: int = 8, model: str | None = None) -> dict:
+def answer(question: str, top_k: int = 8, model: str | None = None,
+           ten_file: str | None = None) -> dict:
     from rag.store import search
-    hits = search(question, top_k=top_k)
+    hits = search(question, top_k=top_k, ten_file=ten_file)
     key = os.getenv("GEMINI_API_KEY", "").strip()
     if not key:
         return {

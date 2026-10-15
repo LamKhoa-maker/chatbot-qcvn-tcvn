@@ -49,11 +49,23 @@ def build_from_chunks(chunks_path: Path) -> int:
     return len(rows)
 
 
-def search(query: str, top_k: int = 5) -> list[dict]:
+def file_list() -> list[str]:
+    """Danh sach ten_file da nap trong collection (de lam dropdown loc)."""
+    col = get_collection()
+    try:
+        got = col.get(include=["metadatas"])
+        files = sorted({m["ten_file"] for m in got["metadatas"] if "ten_file" in m})
+        return files
+    except Exception:
+        return []
+
+
+def search(query: str, top_k: int = 5, ten_file: str | None = None) -> list[dict]:
     from rag.embed import embed_texts, query_prefix
     col = get_collection()
     qv = embed_texts([query_prefix() + query])[0]
-    res = col.query(query_embeddings=[qv], n_results=top_k)
+    where = {"ten_file": ten_file} if ten_file else None
+    res = col.query(query_embeddings=[qv], n_results=top_k, where=where)
     out = []
     for doc, meta, dist in zip(res["documents"][0], res["metadatas"][0], res["distances"][0]):
         out.append({"ten_file": meta["ten_file"], "muc": meta["muc"],

@@ -7,6 +7,7 @@ import streamlit as st
 
 from rag.bootstrap import bootstrap
 from rag.qa import FALLBACKS, answer
+from rag.store import file_list
 
 st.set_page_config(page_title="Chatbot QCVN/TCVN", page_icon="🚒", layout="centered")
 
@@ -66,13 +67,15 @@ def cur():
     return st.session_state.convs[cid]
 
 
-def ask(q: str, top_k: int) -> None:
+def ask(q: str, top_k: int, ten_file: str | None) -> None:
     conv = cur()
+    scope = f" [{ten_file}]" if ten_file else ""
     conv["messages"].append(("user", q))
     if conv["title"] == "Đoạn chat mới":
-        conv["title"] = (q[:42] + "...") if len(q) > 42 else q
+        base = (q[:40] + "...") if len(q) > 40 else q
+        conv["title"] = base + scope
     with st.spinner("Đang tra cứu..."):
-        res = answer(q, top_k=top_k, model=st.session_state.model)
+        res = answer(q, top_k=top_k, model=st.session_state.model, ten_file=ten_file)
     conv["messages"].append(("bot", res))
 
 
@@ -107,6 +110,10 @@ with st.sidebar:
                            index=ids.index(st.session_state.active) if st.session_state.active in ids else 0)
         st.session_state.active = ids[sel]
         conv = cur()
+        new_title = st.text_input("Đổi tên", value=conv["title"], key=f"rename_{st.session_state.active}")
+        if new_title != conv["title"] and st.button("✏️ Lưu tên", use_container_width=True):
+            conv["title"] = new_title
+            st.rerun()
         st.download_button("⬇️ Tải đoạn chat (.md)", export_md(conv),
                            file_name="chat-qcvn-tcvn.md", use_container_width=True)
         if st.button("🗑️ Xóa đoạn chat này", use_container_width=True):
@@ -117,6 +124,10 @@ with st.sidebar:
     st.header("⚙️ Cài đặt")
     st.session_state.model = st.selectbox("Model", MODELS, index=MODELS.index(st.session_state.model))
     st.caption(f"Tự fallback: {', '.join(FALLBACKS)}")
+    files = file_list()
+    scope_opts = ["Tất cả văn bản"] + files
+    scope = st.selectbox("Phạm vi hỏi", scope_opts)
+    ten_file = None if scope == "Tất cả văn bản" else scope
     top_k = st.slider("Số đoạn trích (top_k)", 3, 12, 8)
     st.caption("LLM: Gemini free-tier. Embedding: e5-small local.")
 
@@ -131,12 +142,12 @@ if not conv["messages"]:
     cols = st.columns(2)
     for i, s in enumerate(SUGGESTIONS):
         if cols[i % 2].button(s, key=f"sug_{i}", use_container_width=True):
-            ask(s, top_k)
+            ask(s, top_k, ten_file)
             st.rerun()
 
 q = st.chat_input("Hỏi về QCVN/TCVN...")
 if q:
-    ask(q, top_k)
+    ask(q, top_k, ten_file)
     st.rerun()
 
 for role, msg in conv["messages"]:

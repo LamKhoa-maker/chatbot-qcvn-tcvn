@@ -73,3 +73,12 @@ RAG_Project/
 ## 8. Rủi ro free-tier
 - Giới hạn 15-50 req/phút, hết quota khi họp sẽ chậm -> mitigation: cache câu hỏi hay gặp, fallback Groq.
 - Cần internet. Nếu mất mạng họp thì không dùng được (trade-off của mobile).
+
+## 9. Backlog (chờ test thêm)
+- **D. Chế độ "chỉ trích nguyên văn":** tắt phần diễn giải của AI, chỉ trả quote + nguồn.
+  Dùng khi cần căn cứ pháp lý chính xác khi họp.
+- **C. Lưu lịch sử vĩnh viễn:** database free (Supabase) để mở iPhone/PC đều thấy lại
+  chat cũ. Rename + xóa đã có sẵn ở bản hiện tại (sidebar).
+- Quy trình file: gốc (.md ban đầu) để ở `data_goc/` -> clean từng file khi yêu cầu
+  -> bản clean vào `data/clean/` (thư mục dữ liệu cuối). Mai bổ sung file mới
+  vào `data_goc/` rồi clean lần lượt.
