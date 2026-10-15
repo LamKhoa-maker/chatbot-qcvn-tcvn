@@ -29,10 +29,18 @@ def clean_inline(s: str) -> str:
     s = s.strip()
     s = re.sub(r"^#{1,6}\s*", "", s)
     s = s.replace("<u>", "").replace("</u>", "")
+    s = s.replace("<mark>", "").replace("</mark>", "")
     s = s.replace("**", "").replace("__", "").strip()
     s = re.sub(r"\s{2,}", " ", s)
     s = s.replace("TCVN 7336 : 2021", "TCVN 7336:2021")
     return s.strip(" -–—:").strip()
+
+
+RE_DOC_CODE = re.compile(r"^(qcvn|tcvn)\s+[\w:\-–—/\.\(\) ]+$", re.IGNORECASE)
+RE_BOLD_SPECIAL = re.compile(r"^(phụ lục\s+[a-z]|lời nói đầu|thư mục.*)", re.IGNORECASE)
+RE_CODE_PREFIX_SECTION = re.compile(
+    r"(\d+(?:\.\d+)*)\s+([A-ZÀ-Ỹ][A-ZÀ-Ỹ\s\d\-–—,\.\(\)/]{2,150})$"
+)
 
 
 def level_for_numbered(num: str) -> str:
@@ -51,14 +59,17 @@ def normalize(src: Path, dst: Path, ten_file: str) -> dict:
     out: list[str] = []
     out.append("---")
     out.append(f'ten_file: "{ten_file}"')
-    out.append('nguon: "TCVN 7336:2021"')
+    out.append(f'nguon: "{ten_file}"')
     out.append('dinh_dang: "clean-v1"')
     out.append("---")
     out.append("")
-    out.append("# TCVN 7336:2021 - He thong chua chay tu dong bang nuoc, bot")
+    out.append(f"# {ten_file}")
     out.append("")
-    out.append("> File clean demo tu dong tao boi rag/normalize.py. File goc giu nguyen.")
+    out.append("> File clean tu dong tao boi rag/normalize.py. File goc giu nguyen.")
     out.append("")
+
+    in_toc = False
+    in_picture = False
 
     in_toc = False
     skipped_toc = 0
@@ -90,6 +101,27 @@ def normalize(src: Path, dst: Path, ten_file: str) -> dict:
             i += 1
             continue
 
+        # Bo khoi picture-text OCR (<!-- Start/End of picture text --> + rac giua)
+        if "Start of picture text" in s:
+            in_picture = True
+            i += 1
+            continue
+        if "End of picture text" in s:
+            in_picture = False
+            i += 1
+            continue
+        if in_picture:
+            i += 1
+            continue
+
+        # Bo so trang don le ("1", "2", ...) va running header ma van ban
+        if re.match(r"^\d{1,4}$", s):
+            i += 1
+            continue
+        if RE_DOC_CODE.match(clean_inline(s)) and len(clean_inline(s)) < 60:
+            i += 1
+            continue
+
         if not s:
             if out and out[-1] != "":
                 out.append("")
@@ -113,6 +145,30 @@ def normalize(src: Path, dst: Path, ten_file: str) -> dict:
             out.append("")
             i += 1
             continue
+
+        # Heading dac biet dang in dam nhung thieu dau # (vd '**PHỤ LỤC D** (quy định)')
+        if s.startswith("**"):
+            m_bs = RE_BOLD_SPECIAL.match(clean_inline(s))
+            if m_bs and len(clean_inline(s)) <= 160:
+                out.append(f"## {clean_inline(s)}")
+                out.append("")
+                i += 1
+                continue
+            # Tieu de muc bi dinh running header (vd '**QCVN 06... 2 PHÂN LOẠI...**')
+            m_cs = RE_CODE_PREFIX_SECTION.search(clean_inline(s))
+            if m_cs and re.match(r"^(qcvn|tcvn)\s", clean_inline(s), re.IGNORECASE):
+                num, rest = m_cs.group(1), m_cs.group(2).strip()
+                out.append(f"{level_for_numbered(num)} {num} {rest}".strip())
+                out.append("")
+                i += 1
+                continue
+            # Phu luc bi dinh running header (vd '**QCVN 06... PHỤ LỤC H** (quy định)...')
+            m_ph = re.search(r"(phụ lục\s+[a-z]\b.{0,150})$", clean_inline(s), re.IGNORECASE)
+            if m_ph and re.match(r"^(qcvn|tcvn)\s", clean_inline(s), re.IGNORECASE):
+                out.append(f"## {m_ph.group(1).strip()}")
+                out.append("")
+                i += 1
+                continue
 
         # Truong hop tach: '###### **3.1**' o 1 dong, tieu de o dong sau
         m_bare = RE_BARE_NUMBER.match(s)

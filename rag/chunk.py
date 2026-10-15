@@ -45,8 +45,8 @@ def parse_blocks(lines: list[str]) -> tuple[str, list[dict]]:
             if m_fm:
                 ten_file = m_fm.group(1)
             continue
-        # bo dong ghi chu demo, tranh lam nhieu retrieval
-        if "File clean demo" in s:
+        # bo dong ghi chu tu dong, tranh lam nhieu retrieval
+        if "rag/normalize.py" in s:
             continue
         if s.strip().startswith("|"):
             buf_table.append(s)
